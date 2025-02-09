@@ -50,7 +50,10 @@ contract ZapStrategicReserves {
 
     /// TODO: vyper's default arguments would be helpful here
     /// TODO: support approvals
-    function deposit(uint256 usdc_amount, uint256 usdt_amount, address receiver) public returns (uint256 vault_amount) {
+    function deposit(uint256 usdc_amount, uint256 usdt_amount, address receiver)
+        public
+        returns (uint256 vault_amount)
+    {
         // TODO: sweep any usdc or usdt in the contract? i'd rather not. i'd rather leave that for the recover function
         uint256[] memory amounts = new uint256[](2);
 
@@ -66,15 +69,25 @@ contract ZapStrategicReserves {
         uint256 lp_amount = exchange.add_liquidity(amounts, 0, address(this));
 
         // safety check. make sure that the lp tokens we received are worth close to what we deposited
+        // TODO: should this check a balanced withdraw instead?
         uint256 heavy_id = heavyId();
+        console.log("heavy_id", heavy_id);
+
         uint256 check = exchange.calc_withdraw_one_coin(lp_amount, int128(uint128(heavy_id)));
+        console.log("check", check);
+
+        if (heavy_id == usdc_id) {
+            // shift usdc to have the same decimals as usdt
+            check *= 1e12;
+        }
+
         // TODO: fullmultdiv?
         // TODO: configurable slippage? .1%?
-        uint256 slipped = (usdc_amount + usdt_amount) * 999 / 1000;
-        require (check >= slipped, "slippage");
+        uint256 slipped = (usdc_amount * 1e12 + usdt_amount) * 999 / 1000;
 
-        console.log("check", check);
         console.log("slipped", slipped);
+
+        require(check >= slipped, "slippage");
 
         vault_amount = vault.deposit(lp_amount, receiver);
     }
@@ -87,64 +100,77 @@ contract ZapStrategicReserves {
         token.safeTransfer(receiver, amount);
     }
 
-    function redeemBest(uint256 shares, address receiver) public returns (uint256 assets) {
-        if (heavyId() == usdc_id) {
-            redeemUSDC(shares, receiver);
-        } else {
-            redeemUSDT(shares, receiver);
-        }
+    function _redeem(uint256 tokenId, uint256 shares, address receiver) internal returns (uint256 token_amount) {
+        // TODO: i still want a "debug_require" that doesn't make it into the final contract
+        require(vault.allowance(msg.sender, address(this)) >= shares, "no allowance");
+        require(vault.balanceOf(msg.sender) >= shares, "no shares");
 
-        revert("not implemented");
+        // TODO: i don't think our vault api is correct
+        uint256 max_redeem = vault.maxRedeem(msg.sender);
+        console.log("max_redeem", max_redeem);
+        console.log("shares", shares);
+
+        require(max_redeem >= shares, "max redeem");
+
+        // TODO: max loss
+        // TODO: why is this reverting?
+        uint256 exchange_amount = vault.redeem(shares, msg.sender, address(this));
+
+        revert("wip");
+
+        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 0, receiver);
+
+        // TODO: safety check on token_amount
     }
 
-    function redeemUSDC(uint256 shares, address receiver) public returns (uint256 assets) {
-        revert("not implemented");
+    function redeemBest(uint256 shares, address receiver) public returns (uint256 heavy_id, uint256 token_amount) {
+        heavy_id = heavyId();
+        token_amount = _redeem(heavy_id, shares, receiver);
     }
 
-    function redeemUSDT(uint256 shares, address receiver) public returns (uint256 assets) {
-        revert("not implemented");
+    function redeemUSDC(uint256 shares, address receiver) public returns (uint256 token_amount) {
+        token_amount = _redeem(usdc_id, shares, receiver);
     }
 
-    function _withdraw(address token, uint256 amount, address receiver) internal returns (uint256 assets) {
-        revert("not implemented");
+    function redeemUSDT(uint256 shares, address receiver) public returns (uint256 token_amount) {
+        token_amount = _redeem(usdt_id, shares, receiver);
     }
 
-    function heavyId() public view returns (uint256 id) {
+    function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
+        // TODO: convert token amount into LP tokens and then vault shares
+        vault_shares = 0;
+
+        _redeem(tokenId, vault_shares, receiver);
+    }
+
+    /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
+    function heavyId() public view returns (uint256 heavy_id) {
         // usdc has 6 decimals, usdt has 18 decimals
         // we must shift usdc up to 18 decimals to compare
         uint256 exchange_usdc = usdc.balanceOf(address(exchange)) * 1e12;
         uint256 exchange_usdt = usdt.balanceOf(address(exchange));
 
         if (exchange_usdc >= exchange_usdt) {
-            id = usdc_id;
+            heavy_id = usdc_id;
         } else {
-            id = usdt_id;
+            heavy_id = usdt_id;
         }
     }
 
-    function withdrawBest(uint256 amount, address receiver) public returns (uint256 heavy_id, uint256 vault_amount){
+    function withdrawBest(uint256 amount, address receiver) public returns (uint256 heavy_id, uint256 vault_shares) {
         heavy_id = heavyId();
-
-        if (heavy_id == usdc_id) {
-            vault_amount = withdrawUSDC(amount, receiver);
-        } else {
-            vault_amount = withdrawUSDT(amount, receiver);
-        }
+        vault_shares = _withdraw(heavy_id, amount, receiver);
     }
 
-    function withdrawUSDC(uint256 c_amount, address receiver) public returns (uint256 vault_amount) {
-        revert("not implemented");
+    function withdrawUSDC(uint256 c_amount, address receiver) public returns (uint256 vault_shares) {
+        vault_shares = _withdraw(usdc_id, c_amount, receiver);
     }
 
-    function withdrawUSDT(uint256 t_amount, address receiver) public returns (uint256 vault_amount) {
-        // TODO: calculate how much LP tokens we need to withdraw to get this amount of USDT
-        // TODO: calculate how many vault tokens we need to withdraw to get this amount of LP tokens
-        // TODO: do the withdrawal
-        // TODO: transfer the USDT to the user
-        revert("not implemented");
+    function withdrawUSDT(uint256 t_amount, address receiver) public returns (uint256 vault_shares) {
+        vault_shares = _withdraw(usdt_id, t_amount, receiver);
     }
 
-    function donate(uint256 c_amount, uint256 t_amount, uint256 lp_amount, uint256 vault_amount) external payable {
+    function donate(uint256 c_amount, uint256 t_amount, uint256 lp_amount, uint256 vault_shares) external payable {
         // TODO: convert c_amount and t_amount to lp_amount
         // TODO: transfer lp_amount from msg.sender
         // TODO: transfer vault_amount from msg.sender
