@@ -23,7 +23,6 @@ contract ZapStrategicReserves {
     ICurveStableSwapNG public immutable exchange;
     IVault public immutable vault;
     address public immutable donations;
-    uint256 public immutable max_coins;
 
     constructor(IERC20 _usdc, IERC20 _usdt, ICurveStableSwapNG _exchange, IVault _vault, address _donations) {
         usdc = _usdc;
@@ -34,7 +33,6 @@ contract ZapStrategicReserves {
 
         usdc_id = 0;
         usdt_id = 1;
-        max_coins = 8;
 
         // safety check for coin numbers matching what we expect
         require(address(usdc) == exchange.coins(usdc_id), "coin 0 != usdc");
