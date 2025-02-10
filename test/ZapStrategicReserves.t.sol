@@ -34,12 +34,9 @@ contract ZapStrategicReservesTest is Test {
     }
 
     function test_depositToBest(uint256 usdc_amount, uint256 usdt_amount) public {
-        // // TODO: use function params for these
-        // uint256 usdc_amount = 1e6;
-        // uint256 usdt_amount = 1e6;
-
-        // TODO: use usdc.decimals for this?
+        // TODO: use usdc.decimals() for this?
         vm.assume(usdc_amount / 1e6 <= 10_000);
+        // TODO: use usdt.decimals() for this?
         vm.assume(usdt_amount / 1e6 <= 10_000);
         // TODO: we should have a test that tests for tiny amounts. but let's ignore <$1 for now
         vm.assume(usdc_amount == 0 || usdc_amount / 1e6 > 0);

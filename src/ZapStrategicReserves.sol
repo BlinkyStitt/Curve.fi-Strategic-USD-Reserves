@@ -34,9 +34,10 @@ contract ZapStrategicReserves {
         usdc_id = 0;
         usdt_id = 1;
 
-        // safety check for coin numbers matching what we expect
+        // safety checks
         require(address(usdc) == exchange.coins(usdc_id), "coin 0 != usdc");
         require(address(usdt) == exchange.coins(usdt_id), "coin 1 != usdt");
+        require(address(exchange) == vault.token(), "exchange != vault");
 
         approve();
     }
@@ -134,7 +135,8 @@ contract ZapStrategicReserves {
         uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals());
         console.log("vault_amount", vault_amount);
 
-        _redeem(tokenId, vault_amount, receiver);revert("wip");
+        _redeem(tokenId, vault_amount, receiver);
+        revert("wip");
     }
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
