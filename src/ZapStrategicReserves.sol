@@ -136,7 +136,6 @@ contract ZapStrategicReserves {
         console.log("vault_amount", vault_amount);
 
         _redeem(tokenId, vault_amount, receiver);
-        revert("wip");
     }
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
