@@ -7,7 +7,7 @@
 pragma solidity ^0.8.13;
 
 // TODO: import ERC20 and ICurveExchange and yearn's vault standard
-import {IVault} from "@yearn-vaults-v3/contracts/interfaces/IVault.sol";
+import {IVault} from "src/interfaces/IVault.sol";
 import {ICurveStableSwapNG} from "src/interfaces/ICurveStableSwapNG.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@forge-std/console.sol";
@@ -22,6 +22,7 @@ contract ZapStrategicReserves {
     ICurveStableSwapNG public immutable exchange;
     IVault public immutable vault;
     address public immutable donations;
+    uint256 public immutable max_coins;
 
     constructor(IERC20 _usdc, IERC20 _usdt, ICurveStableSwapNG _exchange, IVault _vault, address _donations) {
         usdc = _usdc;
@@ -32,6 +33,7 @@ contract ZapStrategicReserves {
 
         usdc_id = 0;
         usdt_id = 1;
+        max_coins = 8;
 
         // safety check for coin numbers matching what we expect
         require(address(usdc) == exchange.coins(usdc_id), "coin 0 != usdc");
@@ -44,7 +46,7 @@ contract ZapStrategicReserves {
     /// @dev this probably won't ever need to be called again. but it doesn't hurt to expose
     function approve() public {
         usdc.approve(address(exchange), type(uint256).max);
-        SafeERC20.forceApprove(usdt, address(exchange), type(uint256).max);
+        usdt.forceApprove(address(exchange), type(uint256).max);
         exchange.approve(address(vault), type(uint256).max);
     }
 
@@ -54,7 +56,7 @@ contract ZapStrategicReserves {
         public
         returns (uint256 vault_amount)
     {
-        // TODO: sweep any usdc or usdt in the contract? i'd rather not. i'd rather leave that for the recover function
+        // TODO: i'm not sure that this way of creating "amounts" is correct. what is? should we use max_coins?
         uint256[] memory amounts = new uint256[](2);
 
         if (usdc_amount > 0) {
@@ -66,7 +68,10 @@ contract ZapStrategicReserves {
             amounts[usdt_id] = usdt_amount;
         }
 
+        console.log("adding liquidity");
+        // TODO: why is this failing... hmmm... approvals?
         uint256 lp_amount = exchange.add_liquidity(amounts, 0, address(this));
+        console.log("liquidity added");
 
         // safety check. make sure that the lp tokens we received are worth close to what we deposited
         // TODO: should this check a balanced withdraw instead?
@@ -76,14 +81,9 @@ contract ZapStrategicReserves {
         uint256 check = exchange.calc_withdraw_one_coin(lp_amount, int128(uint128(heavy_id)));
         console.log("check", check);
 
-        if (heavy_id == usdc_id) {
-            // shift usdc to have the same decimals as usdt
-            check *= 1e12;
-        }
-
         // TODO: fullmultdiv?
         // TODO: configurable slippage? .1%?
-        uint256 slipped = (usdc_amount * 1e12 + usdt_amount) * 999 / 1000;
+        uint256 slipped = (usdc_amount + usdt_amount) * 999 / 1000;
 
         console.log("slipped", slipped);
 
@@ -105,20 +105,17 @@ contract ZapStrategicReserves {
         require(vault.allowance(msg.sender, address(this)) >= shares, "no allowance");
         require(vault.balanceOf(msg.sender) >= shares, "no shares");
 
-        // TODO: i don't think our vault api is correct
-        uint256 max_redeem = vault.maxRedeem(msg.sender);
-        console.log("max_redeem", max_redeem);
-        console.log("shares", shares);
-
-        require(max_redeem >= shares, "max redeem");
+        vault.transferFrom(msg.sender, address(this), shares);
 
         // TODO: max loss
         // TODO: why is this reverting?
-        uint256 exchange_amount = vault.redeem(shares, msg.sender, address(this));
+        uint256 exchange_amount = vault.withdraw(shares);
 
-        revert("wip");
+        console.log("exchange_amount", exchange_amount);
 
-        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 0, receiver);
+        require(exchange.balanceOf(address(this)) >= exchange_amount, "no exchange balance");
+
+        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 1, receiver);
 
         // TODO: safety check on token_amount
     }
@@ -137,7 +134,8 @@ contract ZapStrategicReserves {
     }
 
     function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
-        // TODO: convert token amount into LP tokens and then vault shares
+        // TODO: convert token amount into LP tokens and then to vault shares
+        revert("wip");
         vault_shares = 0;
 
         _redeem(tokenId, vault_shares, receiver);

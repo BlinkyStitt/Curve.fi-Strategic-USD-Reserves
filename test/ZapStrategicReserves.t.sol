@@ -28,16 +28,24 @@ contract ZapStrategicReservesTest is Test {
         vault = IVault(0xfBd4d8bf19c67582168059332c46567563d0d75f);
         donations = makeAddr("donations");
 
+        require(exchange.totalSupply() > 0, "exchange not initialized");
+
         zap = new ZapStrategicReserves(usdc, usdt, exchange, vault, donations);
     }
 
     function test_depositToBest(uint256 usdc_amount, uint256 usdt_amount) public {
+        // // TODO: use function params for these
+        // uint256 usdc_amount = 1e6;
+        // uint256 usdt_amount = 1e6;
+
         // TODO: use usdc.decimals for this?
-        vm.assume(usdc_amount / 1e6 <= 100_000);
-        vm.assume(usdt_amount / 1e18 <= 100_000);
+        vm.assume(usdc_amount / 1e6 <= 10_000);
+        vm.assume(usdt_amount / 1e6 <= 10_000);
         // TODO: we should have a test that tests for tiny amounts. but let's ignore <$1 for now
         vm.assume(usdc_amount == 0 || usdc_amount / 1e6 > 0);
-        vm.assume(usdt_amount == 0 || usdt_amount / 1e18 > 0);
+        vm.assume(usdt_amount == 0 || usdt_amount / 1e6 > 0);
+        vm.assume(usdt_amount + usdc_amount > 0);
+
         console.log("usdc", usdc_amount);
         console.log("usdt", usdt_amount);
 
@@ -47,6 +55,9 @@ contract ZapStrategicReservesTest is Test {
         // setup approvals for depositing
         usdc.approve(address(zap), usdc_amount);
         usdt.forceApprove(address(zap), usdt_amount);
+
+        require(usdc.allowance(address(zap), address(exchange)) >= usdc_amount);
+        require(usdt.allowance(address(zap), address(exchange)) >= usdt_amount);
 
         uint256 shares = zap.deposit(usdc_amount, usdt_amount, address(this));
         console.log("vault shares", shares);
@@ -69,10 +80,22 @@ contract ZapStrategicReservesTest is Test {
         console.log("heavy_id", heavy_id);
         console.log("received", received);
 
-        uint256 deposited_amount = usdt_amount + usdc_amount;
-        uint256 max_slippage = deposited_amount * 999 / 1000;
+        uint256 shifted_received = received;
 
-        require(received >= max_slippage, "bad slippage");
+        if (heavy_id == zap.usdc_id()) {
+            require(usdc.balanceOf(address(this)) >= received, "no usdc balance");
+        } else {
+            require(usdt.balanceOf(address(this)) >= received, "no usdt balance");
+        }
+
+        uint256 shifted_deposit_amount = usdt_amount + usdc_amount;
+        uint256 shifted_max_slippage = shifted_deposit_amount * 999 / 1000;
+
+        console.log("shifted_received", shifted_received);
+        console.log("shifted_deposit_amount", shifted_deposit_amount);
+        console.log("shifted_max_slippage", shifted_max_slippage);
+
+        require(shifted_received >= shifted_max_slippage, "bad slippage");
 
         // TODO: make sure approval is 0 now?
     }

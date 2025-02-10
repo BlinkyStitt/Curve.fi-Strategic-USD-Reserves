@@ -1,4 +1,5 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @forge-std/=lib/forge-std/src/
-@yearn-vaults-v3/=lib/yearn-vaults-v3/
+@yearn-vaults/=lib/yearn-vaults/contracts/
+@yearn-vaults-v3/=lib/yearn-vaults-v3/contracts/
