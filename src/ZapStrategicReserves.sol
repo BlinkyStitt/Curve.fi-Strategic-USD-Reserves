@@ -164,10 +164,10 @@ contract ZapStrategicReserves {
     }
 
     function donate(uint256 c_amount, uint256 t_amount, uint256 lp_amount, uint256 vault_shares) external payable {
-        // TODO: convert c_amount and t_amount to lp_amount
-        // TODO: transfer lp_amount from msg.sender
-        // TODO: transfer vault_amount from msg.sender
-
-        revert("not implemented");
+        // TODO: deposit c_amount and t_amount into the exchange for some lp_amount
+        // TODO: transfer more lp_amount from msg.sender
+        // TODO: deposit the total of both lp_amounts into the vault and transfer to the donation address
+        // TODO: transfer vault_shares from msg.sender to the donation address
+        revert("not yet implemented");
     }
 }
