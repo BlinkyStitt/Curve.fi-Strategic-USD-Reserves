@@ -141,8 +141,6 @@ contract ZapStrategicReserves {
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
     function heavyId() public view returns (uint256 heavy_id) {
-        // usdc has 6 decimals, usdt has 18 decimals
-        // we must shift usdc up to 18 decimals to compare
         uint256 exchange_usdc = usdc.balanceOf(address(exchange));
         uint256 exchange_usdt = usdt.balanceOf(address(exchange));
 
