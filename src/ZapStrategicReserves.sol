@@ -52,12 +52,11 @@ contract ZapStrategicReserves {
     }
 
     /// TODO: vyper's default arguments would be helpful here
-    /// TODO: support approvals
+    /// TODO: support approvals? they add complexitiy that I don't really want to audit
     function deposit(uint256 usdc_amount, uint256 usdt_amount, address receiver)
         public
         returns (uint256 vault_amount)
     {
-        // TODO: i'm not sure that this way of creating "amounts" is correct. what is? should we use max_coins?
         uint256[] memory amounts = new uint256[](2);
 
         if (usdc_amount > 0) {
@@ -77,8 +76,8 @@ contract ZapStrategicReserves {
 
         uint256 check = exchange.calc_withdraw_one_coin(lp_amount, int128(uint128(heavy_id)));
 
-        // TODO: fullmultdiv?
-        // TODO: configurable slippage? .1%?
+        // TODO: fullmuldiv?
+        // TODO: configurable slippage? is hard coding .1% fine? an optional arg for this would be nice
         uint256 slipped = (usdc_amount + usdt_amount) * 999 / 1000;
 
         require(check >= slipped, "slippage");
@@ -122,12 +121,22 @@ contract ZapStrategicReserves {
         token_amount = _redeem(usdt_id, shares, receiver);
     }
 
+    /// TODO: test this
     function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
-        // TODO: convert token amount into LP tokens and then to vault shares
-        revert("wip");
-        vault_shares = 0;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[tokenId] = amount;
 
-        _redeem(tokenId, vault_shares, receiver);
+        // TODO: convert token amount into LP tokens and then to vault shares
+        uint256 lp_amount = exchange.calc_token_amount(amounts, false);
+        console.log("lp_amount", lp_amount);
+
+        uint256 price_per_share = vault.pricePerShare();
+        console.log("price_per_share", price_per_share);
+
+        uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals());
+        console.log("vault_amount", vault_amount);
+
+        _redeem(tokenId, vault_amount, receiver);revert("wip");
     }
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
