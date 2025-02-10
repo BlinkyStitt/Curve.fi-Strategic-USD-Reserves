@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 //
-// A "zap" for Curve's strategic USD reserves.
+// A "zap" for Curve.fi's Strategic USD reserves.
 // "Concentrated Liquidity" without painful impermant loss? Maybe.
-// Generally, its bad to treat an exchange pool as being redeemable 1:1. But this pool has a huge "A" and so even if its very overweight on one side, its still tradeable at an okay rate.
-// this is only safe because both usdc and usdt are redeemable 1:1 for USD. If the pool was overweight on a non-redeemable token, it would be a disaster.
+// Generally, its bad to treat an exchange pool as being redeemable 1:1.
+// But this pool has a huge "A" and so even if its very overweight on one side, its still tradeable at an okay rate.
+// This is only safe because both usdc and usdt are redeemable 1:1 for USD.
+// If the pool was overweight on a non-redeemable token, it would be a disaster.
 pragma solidity ^0.8.13;
 
-// TODO: import ERC20 and ICurveExchange and yearn's vault standard
 import {IVault} from "src/interfaces/IVault.sol";
 import {ICurveStableSwapNG} from "src/interfaces/ICurveStableSwapNG.sol";
 import {IERC20, SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -68,24 +69,17 @@ contract ZapStrategicReserves {
             amounts[usdt_id] = usdt_amount;
         }
 
-        console.log("adding liquidity");
-        // TODO: why is this failing... hmmm... approvals?
         uint256 lp_amount = exchange.add_liquidity(amounts, 0, address(this));
-        console.log("liquidity added");
 
         // safety check. make sure that the lp tokens we received are worth close to what we deposited
         // TODO: should this check a balanced withdraw instead?
         uint256 heavy_id = heavyId();
-        console.log("heavy_id", heavy_id);
 
         uint256 check = exchange.calc_withdraw_one_coin(lp_amount, int128(uint128(heavy_id)));
-        console.log("check", check);
 
         // TODO: fullmultdiv?
         // TODO: configurable slippage? .1%?
         uint256 slipped = (usdc_amount + usdt_amount) * 999 / 1000;
-
-        console.log("slipped", slipped);
 
         require(check >= slipped, "slippage");
 
@@ -101,23 +95,18 @@ contract ZapStrategicReserves {
     }
 
     function _redeem(uint256 tokenId, uint256 shares, address receiver) internal returns (uint256 token_amount) {
-        // TODO: i still want a "debug_require" that doesn't make it into the final contract
-        require(vault.allowance(msg.sender, address(this)) >= shares, "no allowance");
-        require(vault.balanceOf(msg.sender) >= shares, "no shares");
+        // // TODO: i want a "debug_require" that doesn't make it into the final contract
+        // require(vault.allowance(msg.sender, address(this)) >= shares, "no allowance");
+        // require(vault.balanceOf(msg.sender) >= shares, "no shares");
 
         vault.transferFrom(msg.sender, address(this), shares);
 
-        // TODO: max loss
-        // TODO: why is this reverting?
         uint256 exchange_amount = vault.withdraw(shares);
 
-        console.log("exchange_amount", exchange_amount);
-
-        require(exchange.balanceOf(address(this)) >= exchange_amount, "no exchange balance");
-
-        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 1, receiver);
+        // require(exchange.balanceOf(address(this)) >= exchange_amount, "no exchange balance");
 
         // TODO: safety check on token_amount
+        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 1, receiver);
     }
 
     function redeemBest(uint256 shares, address receiver) public returns (uint256 heavy_id, uint256 token_amount) {
@@ -145,7 +134,7 @@ contract ZapStrategicReserves {
     function heavyId() public view returns (uint256 heavy_id) {
         // usdc has 6 decimals, usdt has 18 decimals
         // we must shift usdc up to 18 decimals to compare
-        uint256 exchange_usdc = usdc.balanceOf(address(exchange)) * 1e12;
+        uint256 exchange_usdc = usdc.balanceOf(address(exchange));
         uint256 exchange_usdt = usdt.balanceOf(address(exchange));
 
         if (exchange_usdc >= exchange_usdt) {
