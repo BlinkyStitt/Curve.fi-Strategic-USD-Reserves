@@ -33,6 +33,52 @@ contract ZapStrategicReservesTest is Test {
         zap = new ZapStrategicReserves(usdc, usdt, exchange, vault, donations);
     }
 
+    function test_withdrawUsdc() public {
+        uint256 usdc_amount = 10 * 1e6;
+        uint256 usdt_amount = 0;
+
+        uint256 withdraw_amount = usdc_amount / 2;
+
+        address receiver = makeAddr("receiver");
+
+        deal(address(usdc), address(this), usdc_amount);
+
+        usdc.approve(address(zap), usdc_amount);
+
+        uint256 shares = zap.deposit(usdc_amount, usdt_amount, address(this));
+
+        vault.approve(address(zap), shares);
+
+        uint256 redeemed = zap.withdrawUSDC(withdraw_amount, receiver);
+
+        assertEq(usdc.balanceOf(receiver), withdraw_amount, "bad usdc balance");    
+    }
+
+    function test_withdrawUsdt() public {
+        uint256 usdc_amount = 0;
+        uint256 usdt_amount = 10 * 1e6;
+
+        uint256 withdraw_amount = usdt_amount / 2;
+
+        address receiver = makeAddr("receiver");
+
+        deal(address(usdt), address(this), usdt_amount);
+
+        usdt.forceApprove(address(zap), usdt_amount);
+
+        uint256 shares = zap.deposit(usdc_amount, usdt_amount, address(this));
+
+        vault.approve(address(zap), shares);
+
+        // TODO: what type of revert?
+        // vm.expectRevert();
+        // zap.withdrawUSDT(usdt_amount * 2, receiver);
+
+        uint256 redeemed = zap.withdrawUSDT(withdraw_amount, receiver);
+
+        assertEq(usdt.balanceOf(receiver), withdraw_amount, "bad usdt balance");    
+    }
+
     function test_depositToBest(uint256 usdc_amount, uint256 usdt_amount) public {
         // TODO: use usdc.decimals() for this?
         vm.assume(usdc_amount / 1e6 <= 10_000);
