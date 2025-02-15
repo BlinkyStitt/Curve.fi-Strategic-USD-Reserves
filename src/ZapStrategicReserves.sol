@@ -2,8 +2,8 @@
 //
 // A "zap" for Curve.fi's Strategic USD reserves.
 // "Concentrated Liquidity" without painful impermant loss? Maybe.
-// Generally, its bad to treat an exchange pool as being redeemable 1:1.
-// But this pool has a huge "A" and so even if its very overweight on one side, its still tradeable at an okay rate.
+// This pool has a huge "A" and so even if its very overweight on one side, its still tradeable at close to 1:1.
+// Generally, its bad to have an exchange pool always trading at 1:1.
 // This is only safe because both usdc and usdt are redeemable 1:1 for USD.
 // If the pool was overweight on a non-redeemable token, it would be a disaster.
 pragma solidity ^0.8.13;
