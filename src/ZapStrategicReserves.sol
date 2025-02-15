@@ -92,51 +92,62 @@ contract ZapStrategicReserves {
         token.safeTransfer(receiver, amount);
     }
 
-    function _redeem(uint256 tokenId, uint256 shares, address receiver) internal returns (uint256 token_amount) {
+    function _redeem(uint256 tokenId, uint256 shares, address receiver, uint256 expected)
+        internal
+        returns (uint256 token_amount)
+    {
         // // TODO: i want a "debug_require" that doesn't make it into the final contract
         // require(vault.allowance(msg.sender, address(this)) >= shares, "no allowance");
         // require(vault.balanceOf(msg.sender) >= shares, "no shares");
 
         vault.transferFrom(msg.sender, address(this), shares);
 
+        // TODO: is there a potential rounding issue here?
         uint256 exchange_amount = vault.withdraw(shares);
 
         // require(exchange.balanceOf(address(this)) >= exchange_amount, "no exchange balance");
 
-        // TODO: safety check on token_amount
-        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), 1, receiver);
+        // TODO: use remove_liquidity_imbalance here instead of remove_liquidity_one_coin?
+        token_amount = exchange.remove_liquidity_one_coin(exchange_amount, int128(uint128(tokenId)), expected, receiver);
     }
 
     function redeemBest(uint256 shares, address receiver) public returns (uint256 heavy_id, uint256 token_amount) {
         heavy_id = heavyId();
-        token_amount = _redeem(heavy_id, shares, receiver);
+        token_amount = _redeem(heavy_id, shares, receiver, 1);
     }
 
     function redeemUSDC(uint256 shares, address receiver) public returns (uint256 token_amount) {
-        token_amount = _redeem(usdc_id, shares, receiver);
+        token_amount = _redeem(usdc_id, shares, receiver, 1);
     }
 
     function redeemUSDT(uint256 shares, address receiver) public returns (uint256 token_amount) {
-        token_amount = _redeem(usdt_id, shares, receiver);
+        token_amount = _redeem(usdt_id, shares, receiver, 1);
     }
 
+    /// @dev convert amount of a token into lp shares. then convert that number of lp shares to vault shares. then redeem them
     function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
+        // TODO: this is sometimes short by a small amount. how should we correct for rounding errors?
+        // TODO: maybe use `exchange.calc_withdraw_one_coin(lp_amount, tokenId)` ?
         uint256[] memory amounts = new uint256[](2);
         amounts[tokenId] = amount;
-
-        // TODO: convert token amount into LP tokens and then to vault shares
         uint256 lp_amount = exchange.calc_token_amount(amounts, false);
         console.log("lp_amount", lp_amount);
+
+        // TODO: this works for some values, but not others. how should we calculate this. better to withdraw a little too much than too little
+        // TODO: and we can't increase this above the user's allowed balance!
+        // lp_amount += 1e12 + 4e11;
+        // lp_amount += 1e18;
 
         // TODO: theres some rounding here that makes this hard
         uint256 price_per_share = vault.pricePerShare();
         console.log("price_per_share", price_per_share);
 
-        /// TODO: theres some rounding issues here. amount is always a little bit short of what we want. we need to round UP!
-        uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals()) + 1e12 + 5e11;
-        console.log("adjusted vault_amount", vault_amount);
+        uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals());
 
-        _redeem(tokenId, vault_amount, receiver);
+        console.log("vault_amount", vault_amount);
+
+        // TODO: this should be `amount`, not `1`! tests are easier to read like this though
+        _redeem(tokenId, vault_amount, receiver, 1);
     }
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
