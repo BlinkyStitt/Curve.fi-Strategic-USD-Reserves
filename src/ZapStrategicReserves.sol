@@ -126,6 +126,8 @@ contract ZapStrategicReserves {
 
     /// @dev convert amount of a token into lp shares. then convert that number of lp shares to vault shares. then redeem them
     function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
+        console.log("amount requested", amount);
+
         // TODO: this is sometimes short by a small amount. how should we correct for rounding errors?
         // TODO: maybe use `exchange.calc_withdraw_one_coin(lp_amount, tokenId)` ?
         uint256[] memory amounts = new uint256[](2);
@@ -133,21 +135,25 @@ contract ZapStrategicReserves {
         uint256 lp_amount = exchange.calc_token_amount(amounts, false);
         console.log("lp_amount", lp_amount);
 
-        // TODO: this works for some values, but not others. how should we calculate this. better to withdraw a little too much than too little
-        // TODO: and we can't increase this above the user's allowed balance!
-        // lp_amount += 1e12 + 4e11;
-        // lp_amount += 1e18;
+        // check for rounding errors. i don't like this. it seems like a lot of gas just to correct a few wei
+        uint256 withdraw_amount = exchange.calc_withdraw_one_coin(lp_amount, int128(uint128(tokenId)));
+        console.log("withdraw_amount", withdraw_amount);
 
-        // TODO: theres some rounding here that makes this hard
+        if (withdraw_amount < amount) {
+            amounts[tokenId] += amount - withdraw_amount;
+            lp_amount = exchange.calc_token_amount(amounts, false);
+            console.log("lp_amount 2", lp_amount);
+        }
+
         uint256 price_per_share = vault.pricePerShare();
         console.log("price_per_share", price_per_share);
 
+        // TODO: there might be some rounding issues here
         uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals());
 
         console.log("vault_amount", vault_amount);
 
-        // TODO: this should be `amount`, not `1`! tests are easier to read like this though
-        _redeem(tokenId, vault_amount, receiver, 1);
+        _redeem(tokenId, vault_amount, receiver, amount);
     }
 
     /// @notice since both tokens are redeemable 1:1 for USD, we probably often just want to withdraw the one that is heaviest
