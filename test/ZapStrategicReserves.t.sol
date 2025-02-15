@@ -91,7 +91,7 @@ contract ZapStrategicReservesTest is Test {
         assertGeDecimal(usdt.balanceOf(receiver), withdraw_amount, 6, "bad usdt balance");
     }
 
-    function test_depositToBest(uint256 usdc_amount, uint256 usdt_amount) public {
+    function test_depositAndRedeemBest(uint256 usdc_amount, uint256 usdt_amount) public {
         // TODO: use usdc.decimals() for this?
         vm.assume(usdc_amount / 1e6 <= 10_000);
         // TODO: use usdt.decimals() for this?
