@@ -120,7 +120,6 @@ contract ZapStrategicReserves {
         token_amount = _redeem(usdt_id, shares, receiver);
     }
 
-    /// TODO: test this
     function _withdraw(uint256 tokenId, uint256 amount, address receiver) internal returns (uint256 vault_shares) {
         uint256[] memory amounts = new uint256[](2);
         amounts[tokenId] = amount;
@@ -129,11 +128,13 @@ contract ZapStrategicReserves {
         uint256 lp_amount = exchange.calc_token_amount(amounts, false);
         console.log("lp_amount", lp_amount);
 
+        // TODO: theres some rounding here that makes this hard
         uint256 price_per_share = vault.pricePerShare();
         console.log("price_per_share", price_per_share);
 
-        uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals());
-        console.log("vault_amount", vault_amount);
+        /// TODO: theres some rounding issues here. amount is always a little bit short of what we want. we need to round UP!
+        uint256 vault_amount = lp_amount * price_per_share / (10 ** vault.decimals()) + 1e12 + 5e11;
+        console.log("adjusted vault_amount", vault_amount);
 
         _redeem(tokenId, vault_amount, receiver);
     }

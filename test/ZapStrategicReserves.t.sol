@@ -68,11 +68,11 @@ contract ZapStrategicReservesTest is Test {
 
         uint256 shares = zap.deposit(usdc_amount, usdt_amount, address(this));
 
-        vault.approve(address(zap), shares);
+        vault.approve(address(zap), type(uint256).max);
 
-        // TODO: what type of revert?
-        // vm.expectRevert();
-        // zap.withdrawUSDT(usdt_amount * 2, receiver);
+        // trying to withdraw too much should fail
+        vm.expectRevert();
+        zap.withdrawUSDT(usdt_amount * 2, receiver);
 
         uint256 redeemed = zap.withdrawUSDT(withdraw_amount, receiver);
 
