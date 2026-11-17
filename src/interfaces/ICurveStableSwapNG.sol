@@ -12,9 +12,7 @@ interface ICurveStableSwapNG {
     function add_liquidity(uint256[] calldata _amounts, uint256 _min_mint_amount, address _receiver)
         external
         returns (uint256);
-    function remove_liquidity_one_coin(uint256 _burn_amount, int128 i, uint256 _min_received)
-        external
-        returns (uint256);
+    function remove_liquidity_one_coin(uint256 _burn_amount, int128 i, uint256 _min_received) external returns (uint256);
     function remove_liquidity_one_coin(uint256 _burn_amount, int128 i, uint256 _min_received, address _receiver)
         external
         returns (uint256);
@@ -24,9 +22,7 @@ interface ICurveStableSwapNG {
     function remove_liquidity_imbalance(uint256[] calldata _amounts, uint256 _max_burn_amount, address _receiver)
         external
         returns (uint256);
-    function remove_liquidity(uint256 _burn_amount, uint256[] calldata _min_amounts)
-        external
-        returns (uint256[] memory);
+    function remove_liquidity(uint256 _burn_amount, uint256[] calldata _min_amounts) external returns (uint256[] memory);
     function remove_liquidity(uint256 _burn_amount, uint256[] calldata _min_amounts, address _receiver)
         external
         returns (uint256[] memory);
