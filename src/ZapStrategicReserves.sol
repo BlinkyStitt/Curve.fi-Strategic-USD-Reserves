@@ -52,10 +52,7 @@ contract ZapStrategicReserves {
 
     /// TODO: vyper's default arguments would be helpful here
     /// TODO: support approvals? they add complexitiy that I don't really want to audit
-    function deposit(uint256 usdc_amount, uint256 usdt_amount, address receiver)
-        public
-        returns (uint256 vault_amount)
-    {
+    function deposit(uint256 usdc_amount, uint256 usdt_amount, address receiver) public returns (uint256 vault_amount) {
         uint256[] memory amounts = new uint256[](2);
 
         if (usdc_amount > 0) {

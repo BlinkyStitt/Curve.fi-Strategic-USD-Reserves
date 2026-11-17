@@ -7,7 +7,6 @@ import {ICurveStableSwapNG, IERC20, IVault, SafeERC20, ZapStrategicReserves} fro
 contract ZapStrategicReservesTest is Test {
     using SafeERC20 for IERC20;
 
-    uint256 public mainnetFork;
     IERC20 public usdc;
     IERC20 public usdt;
     ICurveStableSwapNG public exchange;
@@ -17,10 +16,7 @@ contract ZapStrategicReservesTest is Test {
     ZapStrategicReserves public zap;
 
     function setUp() public {
-        string memory MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
-
-        mainnetFork = vm.createFork(MAINNET_RPC_URL);
-        vm.selectFork(mainnetFork);
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), 26_430_000);
 
         usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         usdt = IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
